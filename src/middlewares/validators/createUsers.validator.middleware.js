@@ -30,3 +30,25 @@ export const createdUsersValidator = async (req, res, next) => {
     next(error);
   }
 };
+
+export const loginUsersValidator = async (req, res, next) => {
+  try {
+    const joiSchema = Joi.object({
+      email: Joi.string()
+        .email({ minDomainSegments: 2, tlds: { allow: ["com", "net"] } })
+        .required()
+        .messages({
+          "string.email": "유효한 이메일이 아닙니다.",
+          "any.required": "이메일을 입력해주세요.",
+        }),
+      password: Joi.string().min(6).max(10).required().messages({
+        "string.base": "패스워드는 문자열이어야 합니다.",
+        "any.required": "패스워드를 입력해주세요.",
+      }),
+    });
+    await joiSchema.validateAsync(req.body);
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
