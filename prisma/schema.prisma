@@ -12,3 +12,76 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
+model Users {
+  userId Int @id @default(autoincrement()) @map("userId")
+  email String @unique @map("email")
+  password String @map("password")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  UserInfo UserInfo?
+  Resume Resume[]
+  ResumeHistories ResumeHistories[]
+
+@@map("Users")
+}
+
+model UserInfo{
+  infoId Int @id @default(autoincrement()) @map("infoId")
+  authorId Int @unique @map("authorId")
+  name String @map("name")
+  role Role @default(APPLICANT)
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  author Users @relation(fields:[authorId], references:[userId], onDelete:Cascade)
+
+@@map("UserInfo")
+}
+
+model Resume{
+  resumeId Int @id @default(autoincrement()) @map("resumeId")
+  authorId Int @map("authorId")
+  title String @map("title")
+  introduce String @db.Text @map("introduce")
+  status Status @default(APPLY) @map("status")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  author Users @relation(fields:[authorId], references:[userId], onDelete:Cascade)
+  ResumeHistories ResumeHistories[]
+
+@@map("Resume")
+}
+
+model ResumeHistories{
+  resumeHistoryId String @id @default(uuid()) @map("resumeHistoryId")
+  authorId Int @map("authorId")
+  ResumeId Int @map("ResumeId")
+  modifier String @map("modifier")
+  oldStatus String? @map("oldStatus")
+  newStatus String? @map("newStatus")
+
+  author Users @relation(fields:[authorId], references:[userId], onDelete:Cascade)
+  Resume Resume @relation(fields:[ResumeId], references:[resumeId], onDelete:Cascade)
+
+@@map("ResumeHistories")
+}
+
+enum Role{
+  APPLICANT
+  RECRUITER
+}
+
+enum Status{
+  APPLY
+  DROP
+  PASS
+  INTERVIEW1
+  INTERVIEW2
+  FINAL_PASS
+}
