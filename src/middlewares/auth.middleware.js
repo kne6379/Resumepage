@@ -17,8 +17,15 @@ export const authMiddleware = async (req, res, next) => {
 
     const user = await prisma.users.findFirst({
       where: { userId: +userId },
+      include: {
+        UserInfo: {
+          select: {
+            role: true,
+            name: true,
+          },
+        },
+      },
     });
-
     if (!user) {
       res.clearCookie("authorization");
       throw new Error("토큰 사용자가 존재하지 않습니다.");
