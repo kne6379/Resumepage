@@ -2,6 +2,7 @@ import express from "express";
 import { prisma } from "../utils/prisma.util.js";
 import { Prisma } from "@prisma/client";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
+import { refreshTokenMiddleware } from "../middlewares/refresh-token.middleware.js";
 import jwt from "jsonwebtoken";
 import { APPLICANT } from "../constants/resume.constant.js";
 import {

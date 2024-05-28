@@ -1,18 +1,21 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../utils/prisma.util.js";
-import { ACCESS_SECRET_KEY } from "../constants/user.constant.js";
+import { REFRESH_SECRET_KEY } from "../constants/user.constant.js";
+import { salt } from "../constants/user.constant.js";
+import bcrypt from "bcrypt";
 
-export const authMiddleware = async (req, res, next) => {
+export const refreshTokenMiddleware = async (req, res, next) => {
   try {
     const { authorization } = req.headers;
     if (!authorization) {
       throw new Error("토큰이 존재하지 않습니다.");
     }
+    authorization;
     const [tokenType, token] = authorization.split(" ");
     if (tokenType !== "Bearer") {
       throw new Error("토큰 타입이 일치하지 않습니다.");
     }
-    const decodedToken = jwt.verify(token, ACCESS_SECRET_KEY);
+    const decodedToken = jwt.verify(token, REFRESH_SECRET_KEY);
     const userId = decodedToken.userId;
 
     const user = await prisma.users.findFirst({
@@ -29,6 +32,13 @@ export const authMiddleware = async (req, res, next) => {
     if (!user) {
       res.clearCookie("authorization");
       throw new Error("토큰 사용자가 존재하지 않습니다.");
+    }
+
+    const safetoken = await prisma.tokenStorage.findFirst({
+      where: { authorId: +userId },
+    });
+    if (!(await bcrypt.compare(token, safetoken.RefreshToken))) {
+      res.status(401).json({ message: "폐기된 인증 정보입니다." });
     }
     req.user = user;
     next();
