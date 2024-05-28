@@ -192,6 +192,7 @@ router.delete("/resume/:resumeId", authMiddleware, async (req, res, next) => {
   }
 });
 
+// 이력서 상태 수정 API
 // 역할 인가 미들웨어
 router.patch(
   "/resume/:resumeId/status",
@@ -231,6 +232,40 @@ router.patch(
         orderBy: { createdAt: "desc" },
       });
       return res.status(200).json({ data: history });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+//로그 목록 조회 API
+router.get(
+  "/resume/:resumeId/status",
+  authMiddleware,
+  requireRoles(["RECRUITER"]),
+  async (req, res, next) => {
+    try {
+      const { resumeId } = req.params;
+      const resume = await prisma.resumeHistories.findMany({
+        where: { ResumeId: +resumeId },
+        orderBy: { createdAt: "desc" },
+        include: {
+          Resume: {
+            select: {
+              author: {
+                select: {
+                  UserInfo: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      return res.status(200).json({ status: res.statusCode, data: resume });
     } catch (err) {
       next(err);
     }
