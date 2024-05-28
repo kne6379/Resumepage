@@ -92,22 +92,26 @@ router.post("/sign-in", loginUsersValidator, async (req, res, next) => {
 
 // 사용자 정보 조회 API
 router.get("/users", authMiddleware, async (req, res, next) => {
-  const { userId } = req.user;
-  const user = await prisma.users.findFirst({
-    where: { userId: +userId },
-    select: {
-      userId: true,
-      email: true,
-      UserInfo: {
-        select: {
-          name: true,
-          role: true,
-          createdAt: true,
-          updatedAt: true,
+  try {
+    const { userId } = req.user;
+    const user = await prisma.users.findFirst({
+      where: { userId: +userId },
+      select: {
+        userId: true,
+        email: true,
+        UserInfo: {
+          select: {
+            name: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         },
       },
-    },
-  });
-  return res.status(200).json({ data: user });
+    });
+    return res.status(200).json({ data: user });
+  } catch (err) {
+    next(err);
+  }
 });
 export default router;
