@@ -3,10 +3,13 @@ import { prisma } from "../utils/prisma.util.js";
 import { Prisma } from "@prisma/client";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import jwt from "jsonwebtoken";
+import { APPLICANT } from "../constants/resume.constant.js";
 import {
   createdResumeValidator,
   updatedResumeValidator,
+  statusUpdatedValidator,
 } from "../middlewares/validators/resume.validator.middleware.js";
+import { requireRoles } from "../middlewares/roles.middleware.js";
 
 const router = express.Router();
 
@@ -39,9 +42,15 @@ router.post(
 router.get("/resume", authMiddleware, async (req, res, next) => {
   try {
     const { userId } = req.user;
-    const { sort } = req.query;
+    const { sort, status } = req.query;
+    const obj = { status };
+    const role = req.user.UserInfo.role;
+
+    if (role == APPLICANT) {
+      obj.authorId = +userId;
+    }
     const resume = await prisma.resume.findMany({
-      where: { authorId: +userId },
+      where: obj,
       select: {
         resumeId: true,
         title: true,
@@ -75,8 +84,15 @@ router.get("/resume/:resumeId", authMiddleware, async (req, res, next) => {
   try {
     const { userId } = req.user;
     const { resumeId } = req.params;
+    const obj = { resumeId: +resumeId };
+    const role = req.user.UserInfo.role;
+
+    if (role == APPLICANT) {
+      obj.authorId = +userId;
+    }
+
     const resume = await prisma.resume.findFirst({
-      where: { resumeId: +resumeId, authorId: +userId },
+      where: obj,
       select: {
         resumeId: true,
         title: true,
@@ -93,7 +109,7 @@ router.get("/resume/:resumeId", authMiddleware, async (req, res, next) => {
         },
       },
     });
-    if (resume == null) {
+    if (!resume) {
       return res.status(200).json({ message: "이력서가 존재하지 않습니다." });
     }
     return res.status(200).json({ data: resume });
@@ -175,5 +191,50 @@ router.delete("/resume/:resumeId", authMiddleware, async (req, res, next) => {
     next(err);
   }
 });
+
+// 역할 인가 미들웨어
+router.patch(
+  "/resume/:resumeId/status",
+  authMiddleware,
+  requireRoles(["RECRUITER"]),
+  statusUpdatedValidator,
+  async (req, res, next) => {
+    try {
+      const { resumeId } = req.params;
+      const { status, reason } = req.body;
+      const { userId } = req.user;
+      const currentResume = await prisma.resume.findFirst({
+        where: {
+          resumeId: +resumeId,
+        },
+      });
+      await prisma.$transaction(
+        async (tx) => {
+          await tx.resume.update({
+            data: { status },
+            where: { resumeId: +resumeId },
+          });
+          await tx.resumeHistories.create({
+            data: {
+              ResumeId: +resumeId,
+              modifier: +userId,
+              newStatus: status,
+              oldStatus: currentResume.status,
+              reason: reason,
+            },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted }
+      );
+      const history = await prisma.resumeHistories.findFirst({
+        where: { ResumeId: +resumeId },
+        orderBy: { createdAt: "desc" },
+      });
+      return res.status(200).json({ data: history });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 export default router;

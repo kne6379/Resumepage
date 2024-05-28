@@ -23,7 +23,6 @@ model Users {
 
   UserInfo UserInfo?
   Resume Resume[]
-  ResumeHistories ResumeHistories[]
 
 @@map("Users")
 }
@@ -59,14 +58,15 @@ model Resume{
 }
 
 model ResumeHistories{
-  resumeHistoryId String @id @default(uuid()) @map("resumeHistoryId")
-  authorId Int @map("authorId")
+  resumeHistoryId Int @id @default(autoincrement()) @map("resumeHistoryId")
   ResumeId Int @map("ResumeId")
-  modifier String @map("modifier")
+  modifier Int @map("modifier")
   oldStatus String? @map("oldStatus")
   newStatus String? @map("newStatus")
+  reason String @map("reason")
 
-  author Users @relation(fields:[authorId], references:[userId], onDelete:Cascade)
+  createdAt DateTime @default(now()) @map("createdAt")
+
   Resume Resume @relation(fields:[ResumeId], references:[resumeId], onDelete:Cascade)
 
 @@map("ResumeHistories")
