@@ -136,6 +136,7 @@ router.get("/users", authMiddleware, async (req, res, next) => {
   }
 });
 
+// 토큰 재발급 API
 router.post("/tokens", refreshTokenMiddleware, async (req, res) => {
   const { userId } = req.user;
   const ACCESSTOKEN = createAccessToken(userId);
@@ -156,6 +157,7 @@ router.post("/tokens", refreshTokenMiddleware, async (req, res) => {
   });
 });
 
+// 로그아웃 API
 router.delete("/tokens", refreshTokenMiddleware, async (req, res) => {
   const { userId } = req.user;
   await prisma.tokenStorage.delete({
