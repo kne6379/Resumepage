@@ -36,15 +36,23 @@ export const authMiddleware = async (req, res, next) => {
     console.log(err.name);
     switch (err.name) {
       case "TokenExpiredError":
-        return res.status(401).json({ message: "토큰이 만료되었습니다." });
+        return res
+          .status(401)
+          .json({ status: res.statusCode, message: "토큰이 만료되었습니다." });
         break;
       case "JsonWebTokenError":
-        return res.status(401).json({ message: "토큰 인증에 실패하였습니다." });
+        return res.status(401).json({
+          status: res.statusCode,
+          message: "토큰 인증에 실패하였습니다.",
+        });
         break;
       default:
         return res
           .status(401)
-          .json({ message: err.message ?? "비정상적인 요청입니다." });
+          .json({
+            status: res.statusCode,
+            message: err.message ?? "비정상적인 요청입니다.",
+          });
     }
   }
 };

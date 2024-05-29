@@ -52,7 +52,7 @@ export const statusUpdatedValidator = async (req, res, next) => {
         }),
       reason: Joi.string().required().messages({
         "string.base": "사유를 문자열로 입력해주세요.",
-        "any.required": "“지원 상태 변경 사유를 입력해 주세요.",
+        "any.required": "지원 상태 변경 사유를 입력해 주세요.",
       }),
     });
     await joiSchema.validateAsync(req.body);

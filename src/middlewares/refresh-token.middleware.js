@@ -38,7 +38,9 @@ export const refreshTokenMiddleware = async (req, res, next) => {
       where: { authorId: +userId },
     });
     if (!(await bcrypt.compare(token, safetoken.RefreshToken))) {
-      res.status(401).json({ message: "폐기된 인증 정보입니다." });
+      res
+        .status(401)
+        .json({ status: res.statusCode, message: "폐기된 인증 정보입니다." });
     }
     req.user = user;
     next();
@@ -46,10 +48,21 @@ export const refreshTokenMiddleware = async (req, res, next) => {
     console.log(err.name);
     switch (err.name) {
       case "TokenExpiredError":
-        return res.status(401).json({ message: "토큰이 만료되었습니다." });
+        return resv
+          .status(401)
+          .json({ status: res.statusCode, message: "토큰이 만료되었습니다." });
         break;
       case "JsonWebTokenError":
-        return res.status(401).json({ message: "토큰 인증에 실패하였습니다." });
+        return res.status(401).json({
+          status: res.statusCode,
+          message: "토큰 인증에 실패하였습니다.",
+        });
+        break;
+      case "TypeError":
+        return res.status(401).json({
+          status: res.statusCode,
+          message: "삭제된 토큰입니다.",
+        });
         break;
       default:
         return res

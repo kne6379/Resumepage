@@ -6,7 +6,9 @@ export function requireRoles(role) {
       if (role == req.user.UserInfo.role) {
         next();
       } else {
-        return res.status(400).json({ message: "접근 권한이 없습니다." });
+        return res
+          .status(400)
+          .json({ status: res.statusCode, message: "접근 권한이 없습니다." });
       }
     } catch (err) {
       next(err);

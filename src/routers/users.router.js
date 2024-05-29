@@ -24,12 +24,16 @@ router.post("/sign-up", createdUsersValidator, async (req, res, next) => {
       where: { email },
     });
     if (isExistUser) {
-      return res.status(409).json({ message: "이미 존재하는 이메일입니다." });
+      return res.status(409).json({
+        status: res.statusCode,
+        message: "이미 존재하는 이메일입니다.",
+      });
     }
     if (password !== repeat_password) {
-      return res
-        .status(409)
-        .json({ message: "입력한 두 비밀번호가 일치하지 않습니다." });
+      return res.status(409).json({
+        status: res.statusCode,
+        message: "입력한 두 비밀번호가 일치하지 않습니다.",
+      });
     }
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -61,6 +65,7 @@ router.post("/sign-up", createdUsersValidator, async (req, res, next) => {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
+      status: res.statusCode,
       message: "회원가입이 완료되었습니다.",
     });
   } catch (err) {
@@ -74,10 +79,16 @@ router.post("/sign-in", loginUsersValidator, async (req, res, next) => {
     const { email, password } = req.body;
     const user = await prisma.users.findFirst({ where: { email } });
     if (!user) {
-      return res.status(401).json({ message: "존재하지 않는 이메일입니다." });
+      return res.status(401).json({
+        status: res.statusCode,
+        message: "존재하지 않는 이메일입니다.",
+      });
     }
     if (!(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ message: "비밀번호가 일치하지 않습니다." });
+      return res.status(401).json({
+        status: res.statusCode,
+        message: "비밀번호가 일치하지 않습니다.",
+      });
     }
     const ACCESSTOKEN = createAccessToken(user.userId);
     const REFRESHTOKEN = createRefreshToken(user.userId);
@@ -89,12 +100,17 @@ router.post("/sign-in", loginUsersValidator, async (req, res, next) => {
         authorId: user.userId,
       },
     });
-    return res
-      .status(200)
-      .json({ message: "로그인에 성공했습니다.", ACCESSTOKEN, REFRESHTOKEN });
+    return res.status(200).json({
+      status: res.statusCode,
+      message: "로그인에 성공했습니다.",
+      ACCESSTOKEN,
+      REFRESHTOKEN,
+    });
   } catch (err) {
     if ((err.name = "PrismaClientKnownRequestError")) {
-      return res.status(401).json({ message: "이미 로그인한 상태입니다." });
+      return res
+        .status(401)
+        .json({ status: res.statusCode, message: "이미 로그인한 상태입니다." });
     }
     next(err);
   }
@@ -130,7 +146,7 @@ router.get("/users", authMiddleware, async (req, res, next) => {
         },
       },
     });
-    return res.status(200).json({ data: user });
+    return res.status(200).json({ status: res.statusCode, data: user });
   } catch (err) {
     next(err);
   }

@@ -30,9 +30,11 @@ router.post(
           introduce: introduce,
         },
       });
-      return res
-        .status(201)
-        .json({ message: "새로운 이력서가 생성 되었습니다.", data: resume });
+      return res.status(201).json({
+        status: res.statusCode,
+        message: "새로운 이력서가 생성 되었습니다.",
+        data: resume,
+      });
     } catch (err) {
       next(err);
     }
@@ -111,9 +113,12 @@ router.get("/resume/:resumeId", authMiddleware, async (req, res, next) => {
       },
     });
     if (!resume) {
-      return res.status(200).json({ message: "이력서가 존재하지 않습니다." });
+      return res.status(400).json({
+        status: res.statusCode,
+        message: "이력서가 존재하지 않습니다.",
+      });
     }
-    return res.status(200).json({ data: resume });
+    return res.status(200).json({ status: res.statusCode, data: resume });
   } catch (err) {
     next(err);
   }
@@ -140,7 +145,10 @@ router.patch(
       }
 
       if (!(title || introduce)) {
-        return res.status(401).json({ message: "수정할 정보를 입력해주세요." });
+        return res.status(401).json({
+          status: res.statusCode,
+          message: "수정할 정보를 입력해주세요.",
+        });
       }
 
       const newResume = await prisma.resume.update({
@@ -151,12 +159,13 @@ router.patch(
         },
       });
 
-      return res.status(200).json({ data: newResume });
+      return res.status(200).json({ status: res.statusCode, data: newResume });
     } catch (err) {
       if ((err.name = "PrismaClientKnownRequestError")) {
-        return res
-          .status(401)
-          .json({ message: "이력서 정보가 일치하지 않습니다." });
+        return res.status(401).json({
+          status: res.statusCode,
+          message: "이력서 정보가 일치하지 않습니다.",
+        });
       }
       next(err);
     }
@@ -172,22 +181,26 @@ router.delete("/resume/:resumeId", authMiddleware, async (req, res, next) => {
       where: { authorId: +userId },
     });
     if (!resume) {
-      return res
-        .status(401)
-        .json({ message: "작성한 이력서가 존재하지 않습니다." });
+      return res.status(401).json({
+        status: res.statusCode,
+        message: "작성한 이력서가 존재하지 않습니다.",
+      });
     }
     const deleteResume = await prisma.resume.delete({
       where: { resumeId: +resumeId, authorId: +userId },
     });
 
-    return res
-      .status(200)
-      .json({ message: "이력서를 삭제했습니다.", resumeId: resumeId });
+    return res.status(200).json({
+      status: res.statusCode,
+      message: "이력서를 삭제했습니다.",
+      resumeId: resumeId,
+    });
   } catch (err) {
     if ((err.name = "PrismaClientKnownRequestError")) {
-      return res
-        .status(401)
-        .json({ message: "이력서 정보가 일치하지 않습니다." });
+      return res.status(401).json({
+        status: res.statusCode,
+        message: "이력서 정보가 일치하지 않습니다.",
+      });
     }
     next(err);
   }
@@ -232,7 +245,7 @@ router.patch(
         where: { ResumeId: +resumeId },
         orderBy: { createdAt: "desc" },
       });
-      return res.status(200).json({ data: history });
+      return res.status(200).json({ status: res.statusCode, data: history });
     } catch (err) {
       next(err);
     }
