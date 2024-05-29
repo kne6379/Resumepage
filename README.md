@@ -12,6 +12,7 @@
 3. yarn start명령으로 서버를 실행한다. (개발 시에는 yarn dev)   
 
 ## 환경변수   
-SERVER_PORT: 서버가 실행 될 포트   
-MONGODB_URL: MongoDB가 서비스되고 있는 URL   
-MONGODB_NAME: MongoDB 데이터베이스 이름   
+- DATABASE_URL : RDS와 연결된 mySQL URL
+- SERVER_PORT : 사용할 서버 포트
+- ACCESS_SECRET_KEY : 액세스 토큰에 사용되는 비밀키
+- REFRESH_SECRET_KEY : 리프레쉬 토큰에 사용되는 비밀키
