@@ -3,11 +3,12 @@ import { prisma } from "../utils/prisma.util.js";
 import { MESSAGES } from "../constants/message.constant.js";
 import { HTTP_STATUS } from "../constants/http-status.constant.js";
 import { ACCESS_SECRET_KEY } from "../constants/user.constant.js";
+import { UserRepository } from "../repositories/users.repository.js";
 
+const userRepository = new UserRepository(prisma);
 export const authMiddleware = async (req, res, next) => {
   try {
     const authorization = req.headers.authorization;
-
     // Authorization이 없는 경우
     if (!authorization) {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json({
@@ -35,10 +36,7 @@ export const authMiddleware = async (req, res, next) => {
     const decodedToken = jwt.verify(token, ACCESS_SECRET_KEY);
     const userId = decodedToken.id;
 
-    const user = await prisma.users.findUnique({
-      where: { id: userId },
-      omit: { password: true },
-    });
+    const user = await userRepository.findByUser(userId);
 
     if (!user) {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json({
@@ -46,7 +44,6 @@ export const authMiddleware = async (req, res, next) => {
         message: MESSAGES.AUTH.COMMON.JWT.NO_USER,
       });
     }
-
     req.user = user;
     next();
   } catch (err) {

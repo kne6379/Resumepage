@@ -4,9 +4,11 @@ import { MESSAGES } from "../constants/message.constant.js";
 import { HTTP_STATUS } from "../constants/http-status.constant.js";
 import { REFRESH_SECRET_KEY } from "../constants/user.constant.js";
 import { prisma } from "../utils/prisma.util.js";
+import { UserRepository } from "../repositories/users.repository.js";
 
 export const refreshTokenMiddleware = async (req, res, next) => {
   try {
+    const userRepository = new UserRepository(prisma);
     const authorization = req.headers.authorization;
 
     // Authorization이 없는 경우
@@ -38,10 +40,7 @@ export const refreshTokenMiddleware = async (req, res, next) => {
     const decodedToken = jwt.verify(token, REFRESH_SECRET_KEY);
     const userId = decodedToken.id;
 
-    const user = await prisma.users.findUnique({
-      where: { id: userId },
-      omit: { password: true },
-    });
+    const user = await userRepository.findByUser(userId);
 
     //  유저가 없는 경우
     if (!user) {
@@ -51,9 +50,7 @@ export const refreshTokenMiddleware = async (req, res, next) => {
       });
     }
 
-    const safetoken = await prisma.refreshToken.findUnique({
-      where: { userId },
-    });
+    const safetoken = await userRepository.refreshToken(userId);
 
     if (!safetoken.RefreshToken) {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json({
