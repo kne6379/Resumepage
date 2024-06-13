@@ -4,69 +4,61 @@ import jwt from "jsonwebtoken";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { refreshTokenMiddleware } from "../middlewares/refresh-token.middleware.js";
 import {
-  salt,
+  SALT,
   ACCESS_SECRET_KEY,
   REFRESH_SECRET_KEY,
 } from "../constants/user.constant.js";
 import { prisma } from "../utils/prisma.util.js";
-import { Prisma } from "@prisma/client";
 import {
   createdUsersValidator,
   loginUsersValidator,
 } from "../middlewares/validators/createUsers.validator.middleware.js";
-const router = express.Router();
+import { HTTP_STATUS } from "../constants/http-status.constant.js";
+import { MESSAGES } from "../constants/message.constant.js";
+import {
+  ACCESS_TOKEN_EXPIRES_IN,
+  REFRESH_TOKEN_EXPIRES_IN,
+} from "../constants/user.constant.js";
+
+const usersRouter = express.Router();
 
 //사용자 회원가입 API
-router.post("/sign-up", createdUsersValidator, async (req, res, next) => {
+usersRouter.post("/sign-up", createdUsersValidator, async (req, res, next) => {
   try {
     const { email, password, repeat_password, name } = req.body;
     const isExistUser = await prisma.users.findFirst({
       where: { email },
     });
+    // 이메일 중복처리
     if (isExistUser) {
-      return res.status(409).json({
+      return res.status(HTTP_STATUS.CONFLICT).json({
         status: res.statusCode,
-        message: "이미 존재하는 이메일입니다.",
+        message: MESSAGES.AUTH.COMMON.EMAIL.DUPLICATED,
       });
     }
+    // 비밀번호 확인
     if (password !== repeat_password) {
-      return res.status(409).json({
+      return res.status(HTTP_STATUS.CONFLICT).json({
         status: res.statusCode,
-        message: "입력한 두 비밀번호가 일치하지 않습니다.",
+        message:
+          MESSAGES.AUTH.COMMON.PASSWORD_CONFIRM.NOT_MACHTED_WITH_PASSWORD,
       });
     }
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, SALT);
 
-    const [user, userInfo] = await prisma.$transaction(
-      async (tx) => {
-        const user = await tx.users.create({
-          data: {
-            email,
-            password: hashedPassword,
-          },
-        });
-
-        const userInfo = await tx.userInfo.create({
-          data: {
-            authorId: user.userId,
-            name,
-          },
-        });
-        return [user, userInfo];
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted }
-    );
-    return res.status(201).json({
+    const userData = await prisma.users.create({
       data: {
-        userId: user.userId,
-        email: user.email,
-        name: userInfo.name,
-        role: userInfo.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
+        email,
+        password: hashedPassword,
+        name,
       },
+    });
+
+    userData.password = undefined;
+    return res.status(HTTP_STATUS.CREATED).json({
       status: res.statusCode,
-      message: "회원가입이 완료되었습니다.",
+      message: MESSAGES.AUTH.SIGN_UP.SUCCEED,
+      data: userData,
     });
   } catch (err) {
     next(err);
@@ -74,116 +66,106 @@ router.post("/sign-up", createdUsersValidator, async (req, res, next) => {
 });
 
 // 사용자 로그인 API
-router.post("/sign-in", loginUsersValidator, async (req, res, next) => {
+usersRouter.post("/sign-in", loginUsersValidator, async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const user = await prisma.users.findFirst({ where: { email } });
-    if (!user) {
-      return res.status(401).json({
-        status: res.statusCode,
-        message: "존재하지 않는 이메일입니다.",
-      });
-    }
-    if (!(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({
-        status: res.statusCode,
-        message: "비밀번호가 일치하지 않습니다.",
-      });
-    }
-    const ACCESSTOKEN = createAccessToken(user.userId);
-    const REFRESHTOKEN = createRefreshToken(user.userId);
-    const SAFEREFRESHTOKEN = await bcrypt.hash(REFRESHTOKEN, salt);
 
-    await prisma.tokenStorage.create({
-      data: {
-        RefreshToken: SAFEREFRESHTOKEN,
-        authorId: user.userId,
-      },
-    });
-    return res.status(200).json({
+    if (!user) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        status: res.statusCode,
+        message: MESSAGES.AUTH.COMMON.UNAUTHORIZED,
+      });
+    }
+
+    if (!(await bcrypt.compare(password, user.password))) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        status: res.statusCode,
+        message: MESSAGES.AUTH.COMMON.UNAUTHORIZED,
+      });
+    }
+    const payload = { id: user.id };
+
+    const data = await generateAuthTokens(payload);
+
+    return res.status(HTTP_STATUS.OK).json({
       status: res.statusCode,
-      message: "로그인에 성공했습니다.",
-      ACCESSTOKEN,
-      REFRESHTOKEN,
+      message: MESSAGES.AUTH.SIGN_IN.SUCCEED,
+      data,
     });
   } catch (err) {
-    if ((err.name = "PrismaClientKnownRequestError")) {
-      return res
-        .status(401)
-        .json({ status: res.statusCode, message: "이미 로그인한 상태입니다." });
-    }
     next(err);
   }
 });
 
-function createAccessToken(id) {
-  return jwt.sign({ userId: id }, ACCESS_SECRET_KEY, {
-    expiresIn: "12h",
-  });
-}
-function createRefreshToken(id) {
-  return jwt.sign({ userId: id }, REFRESH_SECRET_KEY, {
-    expiresIn: "7d",
-  });
-}
-
 // 사용자 정보 조회 API
-router.get("/users", authMiddleware, async (req, res, next) => {
+usersRouter.get("/users", authMiddleware, async (req, res, next) => {
   try {
-    const { userId } = req.user;
-    const user = await prisma.users.findFirst({
-      where: { userId: +userId },
-      select: {
-        userId: true,
-        email: true,
-        UserInfo: {
-          select: {
-            name: true,
-            role: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
-      },
-    });
-    return res.status(200).json({ status: res.statusCode, data: user });
+    const data = req.user;
+
+    return res.status(HTTP_STATUS.OK).json({ status: res.statusCode, data });
   } catch (err) {
     next(err);
   }
 });
 
 // 토큰 재발급 API
-router.post("/tokens", refreshTokenMiddleware, async (req, res) => {
-  const { userId } = req.user;
-  const ACCESSTOKEN = createAccessToken(userId);
-  const REFRESHTOKEN = createRefreshToken(userId);
-  const SAFEREFRESHTOKEN = await bcrypt.hash(REFRESHTOKEN, salt);
-  await prisma.tokenStorage.update({
-    where: { authorId: +userId },
-    data: {
-      RefreshToken: SAFEREFRESHTOKEN,
-      authorId: +userId,
-    },
-  });
+usersRouter.post("/tokens", refreshTokenMiddleware, async (req, res) => {
+  const user = req.user;
+  const payload = { id: user.id };
 
-  return res.status(200).json({
-    message: "새로운 Token이 발급 되었습니다.",
-    ACCESSTOKEN,
-    REFRESHTOKEN,
+  const data = await generateAuthTokens(payload);
+
+  return res.status(HTTP_STATUS.OK).json({
+    message: MESSAGES.AUTH.TOKEN.SUCCEED,
+    data,
   });
 });
 
 // 로그아웃 API
-router.delete("/tokens", refreshTokenMiddleware, async (req, res) => {
-  const { userId } = req.user;
-  await prisma.tokenStorage.delete({
-    where: { authorId: +userId },
+usersRouter.post("/sign-out", refreshTokenMiddleware, async (req, res) => {
+  const user = req.user;
+  await prisma.refreshToken.update({
+    where: { userId: user.id },
+    data: {
+      RefreshToken: null,
+    },
   });
 
-  return res.status(200).json({
-    message: "해당 토큰이 삭제되었습니다.",
-    userId: userId,
+  return res.status(HTTP_STATUS.OK).json({
+    message: MESSAGES.AUTH.SIGN_OUT.SUCCEED,
+    data: { id: user.id },
   });
 });
 
-export default router;
+const generateAuthTokens = async (payload) => {
+  const userId = payload.id;
+
+  const accessToken = jwt.sign(payload, ACCESS_SECRET_KEY, {
+    expiresIn: ACCESS_TOKEN_EXPIRES_IN,
+  });
+
+  const refreshToken = jwt.sign(payload, REFRESH_SECRET_KEY, {
+    expiresIn: REFRESH_TOKEN_EXPIRES_IN,
+  });
+
+  const hashedRefreshToken = bcrypt.hashSync(refreshToken, SALT);
+
+  // RefreshToken을 생성 또는 갱신
+  await prisma.refreshToken.upsert({
+    where: {
+      userId,
+    },
+    update: {
+      RefreshToken: hashedRefreshToken,
+    },
+    create: {
+      userId,
+      RefreshToken: hashedRefreshToken,
+    },
+  });
+
+  return { accessToken, refreshToken };
+};
+
+export { usersRouter };

@@ -1,4 +1,7 @@
-export const APPLICANT = "APPLICANT";
+export const USER_ROLE = {
+  APPLICANT: "APPLICANT",
+  RECRUITER: "RECRUITER",
+};
 export const STATUS = {
   APPLY: "APPLY",
   DROP: "DROP",
@@ -7,3 +10,4 @@ export const STATUS = {
   INTERVIEW2: "INTERVIEW2",
   FINAL_PASS: "FINAL_PASS",
 };
+export const MIN_RESUME_LENGTH = 150;

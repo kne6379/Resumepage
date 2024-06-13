@@ -1,15 +1,19 @@
-import { prisma } from "../utils/prisma.util.js";
+import { HTTP_STATUS } from "../constants/http-status.constant.js";
+import { MESSAGES } from "../constants/message.constant.js";
 
 export function requireRoles(role) {
   return async (req, res, next) => {
     try {
-      if (role == req.user.UserInfo.role) {
-        next();
-      } else {
-        return res
-          .status(400)
-          .json({ status: res.statusCode, message: "접근 권한이 없습니다." });
+      const user = req.user;
+
+      const hasPermission = user && role.includes(user.role);
+      if (!hasPermission) {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          status: res.statusCode,
+          message: MESSAGES.AUTH.COMMON.FORBIDDEN,
+        });
       }
+      next();
     } catch (err) {
       next(err);
     }

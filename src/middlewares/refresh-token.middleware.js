@@ -1,73 +1,98 @@
 import jwt from "jsonwebtoken";
-import { prisma } from "../utils/prisma.util.js";
-import { REFRESH_SECRET_KEY } from "../constants/user.constant.js";
-import { salt } from "../constants/user.constant.js";
 import bcrypt from "bcrypt";
+import { MESSAGES } from "../constants/message.constant.js";
+import { HTTP_STATUS } from "../constants/http-status.constant.js";
+import { REFRESH_SECRET_KEY } from "../constants/user.constant.js";
+import { prisma } from "../utils/prisma.util.js";
 
 export const refreshTokenMiddleware = async (req, res, next) => {
   try {
-    const { authorization } = req.headers;
+    const authorization = req.headers.authorization;
+
+    // Authorization이 없는 경우
     if (!authorization) {
-      throw new Error("토큰이 존재하지 않습니다.");
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        status: res.statusCode,
+        message: MESSAGES.AUTH.COMMON.JWT.NO_TOKEN,
+      });
     }
-    authorization;
+
+    // JWT 표준 인증 형태와 일치하지 않는 경우
     const [tokenType, token] = authorization.split(" ");
+
     if (tokenType !== "Bearer") {
-      throw new Error("토큰 타입이 일치하지 않습니다.");
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        status: HTTP_STATUS.UNAUTHORIZED,
+        message: MESSAGES.AUTH.COMMON.JWT.NOT_SUPPORTED_TYPE,
+      });
     }
+
+    // 리프레쉬 토큰이 존재하지 않는 경우
+    if (!token) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        status: HTTP_STATUS.UNAUTHORIZED,
+        message: MESSAGES.AUTH.COMMON.JWT.NO_TOKEN,
+      });
+    }
+
     const decodedToken = jwt.verify(token, REFRESH_SECRET_KEY);
-    const userId = decodedToken.userId;
+    const userId = decodedToken.id;
 
-    const user = await prisma.users.findFirst({
-      where: { userId: +userId },
-      include: {
-        UserInfo: {
-          select: {
-            role: true,
-            name: true,
-          },
-        },
-      },
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+      omit: { password: true },
     });
+
+    //  유저가 없는 경우
     if (!user) {
-      res.clearCookie("authorization");
-      throw new Error("토큰 사용자가 존재하지 않습니다.");
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        status: HTTP_STATUS.UNAUTHORIZED,
+        message: MESSAGES.AUTH.COMMON.JWT.NO_USER,
+      });
     }
 
-    const safetoken = await prisma.tokenStorage.findFirst({
-      where: { authorId: +userId },
+    const safetoken = await prisma.refreshToken.findUnique({
+      where: { userId },
     });
+
+    if (!safetoken.RefreshToken) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        status: res.statusCode,
+        message: "삭제된 토큰입니다.",
+      });
+    }
+
     if (!(await bcrypt.compare(token, safetoken.RefreshToken))) {
-      res
-        .status(401)
-        .json({ status: res.statusCode, message: "폐기된 인증 정보입니다." });
+      res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        status: res.statusCode,
+        message: MESSAGES.AUTH.COMMON.JWT.DISCARDED_TOKEN,
+      });
     }
     req.user = user;
+
     next();
   } catch (err) {
-    console.log(err.name);
     switch (err.name) {
       case "TokenExpiredError":
-        return resv
-          .status(401)
-          .json({ status: res.statusCode, message: "토큰이 만료되었습니다." });
-        break;
-      case "JsonWebTokenError":
-        return res.status(401).json({
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
           status: res.statusCode,
-          message: "토큰 인증에 실패하였습니다.",
+          message: MESSAGES.AUTH.COMMON.JWT.EXPIRED,
         });
-        break;
+      case "JsonWebTokenError":
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          status: res.statusCode,
+          message: MESSAGES.AUTH.COMMON.JWT.INVALID,
+        });
       case "TypeError":
-        return res.status(401).json({
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({
           status: res.statusCode,
           message: "삭제된 토큰입니다.",
         });
-        break;
       default:
-        return res
-          .status(401)
-          .json({ message: err.message ?? "비정상적인 요청입니다." });
+        return res.status(401).json({
+          status: res.statusCode,
+          message: err.message ?? "비정상적인 요청입니다.",
+        });
     }
   }
 };

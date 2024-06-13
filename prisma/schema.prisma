@@ -5,7 +5,8 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["omitApi"]
 }
 
 datasource db {
@@ -14,81 +15,69 @@ datasource db {
 }
 
 model Users {
-  userId Int @id @default(autoincrement()) @map("userId")
-  email String @unique @map("email")
-  password String @map("password")
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(APPLICANT)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  createdAt DateTime @default(now()) @map("createdAt")
-  updatedAt DateTime @updatedAt @map("updatedAt")
+  refreshToken    RefreshToken?
+  resumeHistories ResumeHistories[]
+  resume          Resume[]
 
-  UserInfo UserInfo?
-  TokenStorage TokenStorage?
-  Resume Resume[]
-
-@@map("Users")
+  @@map("users")
 }
 
-model UserInfo{
-  infoId Int @id @default(autoincrement()) @map("infoId")
-  authorId Int @unique @map("authorId")
-  name String @map("name")
-  role Role @default(APPLICANT)
+model Resume {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  title     String
+  introduce String   @db.Text
+  status    Status   @default(APPLY)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  createdAt DateTime @default(now()) @map("createdAt")
-  updatedAt DateTime @updatedAt @map("updatedAt")
+  user            Users             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeHistories ResumeHistories[]
 
-  author Users @relation(fields:[authorId], references:[userId], onDelete:Cascade)
-
-@@map("UserInfo")
+  @@map("resumes")
 }
 
-model Resume{
-  resumeId Int @id @default(autoincrement()) @map("resumeId")
-  authorId Int @map("authorId")
-  title String @map("title")
-  introduce String @db.Text @map("introduce")
-  status Status @default(APPLY) @map("status")
+model ResumeHistories {
+  id          Int      @id @default(autoincrement())
+  resumeId    Int      @map("resume_id")
+  recruiterId Int      @map("recruiter_id")
+  oldStatus   Status   @map("old_status")
+  newStatus   Status   @map("new_status")
+  reason      String
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  createdAt DateTime @default(now()) @map("createdAt")
-  updatedAt DateTime @updatedAt @map("updatedAt")
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  user   Users  @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
 
-  author Users @relation(fields:[authorId], references:[userId], onDelete:Cascade)
-  ResumeHistories ResumeHistories[]
-
-@@map("Resume")
+  @@map("resume_histories")
 }
 
-model ResumeHistories{
-  resumeHistoryId Int @id @default(autoincrement()) @map("resumeHistoryId")
-  ResumeId Int @map("ResumeId")
-  modifier Int @map("modifier")
-  oldStatus String? @map("oldStatus")
-  newStatus String? @map("newStatus")
-  reason String @map("reason")
+model RefreshToken {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @unique @map("user_id")
+  RefreshToken String?  @map("refresh_token")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  createdAt DateTime @default(now()) @map("createdAt")
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  Resume Resume @relation(fields:[ResumeId], references:[resumeId], onDelete:Cascade)
-
-@@map("ResumeHistories")
+  @@map("refresh_token")
 }
 
-model TokenStorage{
-  TokenId Int @id @default(autoincrement()) @map("TokenId")
-  authorId Int @unique @map("authorId")
-  RefreshToken String @map("RefreshToken")
-
-  author Users @relation(fields:[authorId], references:[userId], onDelete:Cascade)
-
-@@map("TokenStorage")
-}
-
-enum Role{
+enum Role {
   APPLICANT
   RECRUITER
 }
 
-enum Status{
+enum Status {
   APPLY
   DROP
   PASS

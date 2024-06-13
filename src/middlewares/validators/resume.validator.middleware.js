@@ -1,17 +1,17 @@
 import Joi from "joi";
 import { STATUS } from "../../constants/resume.constant.js";
+import { MESSAGES } from "../../constants/message.constant.js";
+import { MIN_RESUME_LENGTH } from "../../constants/resume.constant.js";
 
 export const createdResumeValidator = async (req, res, next) => {
   try {
     const joiSchema = Joi.object({
       title: Joi.string().required().messages({
-        "string.base": "제목을 문자열로 입력해주세요.",
-        "any.required": "제목을 작성해주세요.",
+        "any.required": MESSAGES.RESUMES.COMMON.TITLE.REQUIRED,
       }),
       introduce: Joi.string().required().min(150).messages({
-        "string.base": "자기소개를 문자열로 입력해주세요.",
-        "any.required": "자기소개를 작성해주세요.",
-        "string.min": "자기소개는 최소 150자 이상 작성해야 합니다.",
+        "any.required": MESSAGES.RESUMES.COMMON.CONTENT.REQUIRED,
+        "string.min": MESSAGES.RESUMES.COMMON.CONTENT.MIN_LENGTH,
       }),
     });
     await joiSchema.validateAsync(req.body);
@@ -24,14 +24,15 @@ export const createdResumeValidator = async (req, res, next) => {
 export const updatedResumeValidator = async (req, res, next) => {
   try {
     const joiSchema = Joi.object({
-      title: Joi.string().messages({
-        "string.base": "제목을 문자열로 입력해주세요.",
+      title: Joi.string(),
+      introduce: Joi.string().min(MIN_RESUME_LENGTH).messages({
+        "string.min": MESSAGES.RESUMES.COMMON.CONTENT.MIN_LENGTH,
       }),
-      introduce: Joi.string().min(150).messages({
-        "string.base": "자기소개를 문자열로 입력해주세요.",
-        "string.min": "자기소개는 최소 150자 이상 작성해야 합니다.",
-      }),
-    });
+    })
+      .min(1)
+      .messages({
+        "object.min": MESSAGES.RESUMES.UPDATE.NO_BODY_DATA,
+      });
     await joiSchema.validateAsync(req.body);
     next();
   } catch (error) {
@@ -46,13 +47,11 @@ export const statusUpdatedValidator = async (req, res, next) => {
         .valid(...Object.values(STATUS))
         .required()
         .messages({
-          "string.base": "이력서 상태는 문자열이어야 합니다.",
-          "any.only": "유효하지 않은 지원 상태입니다.",
-          "any.required": "변경하고자 하는 지원 상태를 입력해 주세요.",
+          "any.only": MESSAGES.RESUMES.UPDATE.STATUS.NO_STATUS,
+          "any.required": MESSAGES.RESUMES.UPDATE.STATUS.INVALID_STATUS,
         }),
       reason: Joi.string().required().messages({
-        "string.base": "사유를 문자열로 입력해주세요.",
-        "any.required": "지원 상태 변경 사유를 입력해 주세요.",
+        "any.required": MESSAGES.RESUMES.UPDATE.STATUS.NO_REASON,
       }),
     });
     await joiSchema.validateAsync(req.body);
