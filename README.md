@@ -3,7 +3,7 @@
 ## Node.js 심화주차
 -  3-Layered Architecture
 -  Http Error Class와 에러 처리 Middleware 활용
--  jest를 활용한 테스트코드를 구햔힐 계획입니다. 
+-  jest를 활용한 테스트코드를 구현할 계획입니다. 
 
 ## 피드백 반영
 - 튜터님께서 적어주신 피드백을 반영했습니다. #28번 이슈
