@@ -1,5 +1,15 @@
 # Resumepage
 
+## Node.js 심화주차
+-  3-Layered Architecture
+-  Http Error Class와 에러 처리 Middleware 활용
+-  jest를 활용한 테스트코드를 구햔힐 계획입니다. 
+
+## 피드백 반영
+- 튜터님께서 적어주신 피드백을 반영했습니다. #28번 이슈
+- ERD와 스키마 구조를 수정하여 데이터베이스에 반영했습니다.
+
+
 ## Node.js 숙련주차
 - 백엔드 서버를 구성하기 위하여 mysql을 통한 데이터베이스 설계, 구현   
 - 사용자 CRUD + 이력서 CRUD 및 jwt 토큰을 사용한 사용자 인증과 권한 인가   
